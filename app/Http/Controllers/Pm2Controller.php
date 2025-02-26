@@ -15,11 +15,33 @@ class Pm2Controller extends Controller
 
         // Vérifier si l'exécution a échoué
         if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
+            return response()->json([
+                'error' => 'Échec de l’exécution de la commande PM2',
+                'output' => $process->getErrorOutput(),
+            ]);
         }
 
-        // Décoder la sortie JSON de PM2
-        $pm2Processes = json_decode($process->getOutput(), true);
+        // Récupérer la sortie brute
+        $output = $process->getOutput();
+
+        // Vérifier si la sortie est vide
+        if (empty($output)) {
+            return response()->json([
+                'error' => 'La commande PM2 n’a retourné aucune sortie',
+            ]);
+        }
+
+        // Essayer de décoder le JSON
+        $pm2Processes = json_decode($output, true);
+
+        // Vérifier si la conversion JSON a échoué
+        if ($pm2Processes === null) {
+            return response()->json([
+                'error' => 'Impossible de décoder le JSON',
+                'raw_output' => $output,
+                'json_last_error' => json_last_error_msg(),
+            ]);
+        }
 
         return view('pm2.index', compact('pm2Processes'));
     }
